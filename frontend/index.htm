@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat with PDF</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React & ReactDOM via CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+  <!-- App Script -->
+  <script type="text/babel">
+
+    const { useState } = React;
+
+    function App() {
+      const [question, setQuestion] = useState('');
+      const [chat, setChat] = useState([]);
+      const [file, setFile] = useState(null);
+      const [loading, setLoading] = useState(false);
+
+      const uploadPDF = async () => {
+        if (!file) return alert('Please select a PDF file first!');
+        const formData = new FormData();
+        formData.append('file', file);
+
+        setLoading(true);
+        try {
+          await axios.post('http://localhost:5010/upload', formData);
+          alert('PDF uploaded and indexed!');
+        } catch (err) {
+          alert('Upload failed: ' + err.message);
+        }
+        setLoading(false);
+      };
+
+      const askQuestion = async () => {
+        if (!question.trim()) return;
+        setChat([...chat, { role: 'user', text: question }]);
+        setLoading(true);
+        try {
+          const res = await axios.post('http://localhost:5010/ask', { question });
+          setChat(prev => [...prev, { role: 'bot', text: res.data.answer }]);
+        } catch (err) {
+          setChat(prev => [...prev, { role: 'bot', text: 'Error: ' + err.message }]);
+        }
+        setQuestion('');
+        setLoading(false);
+      };
+
+      return (
+        <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+          <h2>🧾 Chat with your PDF</h2>
+
+          <input type="file" accept="application/pdf" onChange={e => setFile(e.target.files[0])} />
+          <button onClick={uploadPDF} disabled={loading}>Upload PDF</button>
+
+          <div style={{ margin: '20px 0' }}>
+            {chat.map((c, i) => (
+              <div key={i} style={{ marginBottom: 10 }}>
+                <b>{c.role === 'user' ? '🧑 You' : '🤖 Bot'}:</b> {c.text}
+              </div>
+            ))}
+          </div>
+
+          <input
+            type="text"
+            value={question}
+            placeholder="Ask a question about the PDF..."
+            onChange={e => setQuestion(e.target.value)}
+            style={{ width: '70%', marginRight: '10px' }}
+          />
+          <button onClick={askQuestion} disabled={loading}>Send</button>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+  </script>
+</body>
+</html>
